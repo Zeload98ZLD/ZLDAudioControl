@@ -1,0 +1,273 @@
+<Window x:Class="HerculesAudioControl.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:HerculesAudioControl.Models"
+        Title="ZLD Audio Control 1.0"
+        Width="1320" Height="860"
+        MinWidth="1050" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Closing="Window_Closing">
+
+    <Window.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
+            <Setter Property="CornerRadius" Value="18"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,16,16"/>
+        </Style>
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#28324B"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="245"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Background="{DynamicResource PanelHoverBrush}" Padding="20">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
+                        <Border Width="44" Height="44" Background="{StaticResource AccentBrush}" CornerRadius="13">
+                            <Image Source="/Assets/zld-logo.png"
+                                   Stretch="UniformToFill"
+                                   ClipToBounds="True"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="ZLD Audio Control" FontSize="18" FontWeight="Bold"/>
+                            <TextBlock Text="Version 0.5" Foreground="{DynamicResource MutedTextBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Content="⌂   Dashboard" HorizontalContentAlignment="Left"/>
+                    <Button Content="🎛   Controller" HorizontalContentAlignment="Left"
+                            Background="#1A2440" Margin="0,8,0,0"/>
+                    <Button Content="♫   Equalizer" HorizontalContentAlignment="Left"
+                            Background="#1A2440" Margin="0,8,0,0"
+                            Click="OpenEqualizer_Click"/>
+                    <Button Content="▣   Profile" HorizontalContentAlignment="Left"
+                            Background="#1A2440" Margin="0,8,0,0"/>
+                    <Button Content="↻   Updates" HorizontalContentAlignment="Left"
+                            Background="#1A2440" Margin="0,8,0,0"
+                            Click="OpenUpdates_Click"/>
+
+                    <TextBlock Text="PROFIL" Margin="4,28,0,8"
+                               Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                    <ComboBox x:Name="ProfileCombo" Height="38"
+                              SelectionChanged="ProfileCombo_SelectionChanged">
+                        <ComboBoxItem Content="Gaming"/>
+                        <ComboBoxItem Content="Musik"/>
+                        <ComboBoxItem Content="Streaming"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border Background="#131C31" CornerRadius="14" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="MIDI-CONTROLLER" FontSize="11"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <ComboBox x:Name="MidiDeviceCombo" Margin="0,9,0,10" Height="36"
+                                      SelectionChanged="MidiDeviceCombo_SelectionChanged"/>
+                            <TextBlock x:Name="MidiStatusText" Text="Nicht verbunden"
+                                       Foreground="{StaticResource Accent2Brush}" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="LastMidiText" Text="Letztes Signal: –"
+                                       Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#131C31" CornerRadius="14"
+                            Padding="10" Margin="0,10,0,0">
+                        <Grid>
+                            <TextBlock Text="Darstellung"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <Button x:Name="ThemeToggleButton"
+                                    Content="☀ Light"
+                                    HorizontalAlignment="Right"
+                                    Padding="10,6"
+                                    Click="ThemeToggle_Click"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <Grid Margin="30">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="ZLD Audio Command Center" FontSize="36" FontWeight="Bold"/>
+                        <TextBlock x:Name="OutputDeviceText"
+                                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button Content="+ Auto-Game" Margin="0,0,10,0"
+                                Background="#244B45" Click="AddAutoGame_Click"/>
+                        <Button Content="+ Programm hinzufügen" Click="AddProgram_Click"/>
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="0,26,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.15*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <Grid>
+                                <TextBlock Text="WINDOWS MASTER"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                                <Border HorizontalAlignment="Right" Background="#102C29"
+                                        CornerRadius="8" Padding="8,4">
+                                    <TextBlock Text="SYSTEM" Foreground="{StaticResource Accent2Brush}"/>
+                                </Border>
+                            </Grid>
+                            <TextBlock x:Name="MasterPercentText" Text="0 %"
+                                       FontSize="42" FontWeight="Bold" Margin="0,12"/>
+                            <Slider x:Name="MasterSlider" Minimum="0" Maximum="100"
+                                    ValueChanged="MasterSlider_ValueChanged"/>
+                            <Grid Margin="0,16,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="MasterMuteButton" Content="Stumm"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Click="MasterMute_Click"/>
+                                    <Button Content="MIDI zuweisen" Margin="10,0,0,0"
+                                            Click="LearnMaster_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="MasterMidiText" Text="Nicht belegt"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="MEDIENSTEUERUNG"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <UniformGrid Columns="3" Margin="0,15,0,0">
+                                <Button Content="⏮" FontSize="22" Margin="0,0,8,0"
+                                        Click="Previous_Click"/>
+                                <Button Content="▶ / ⏸" FontSize="18" Margin="0,0,8,0"
+                                        Click="PlayPause_Click"/>
+                                <Button Content="⏭" FontSize="22" Click="Next_Click"/>
+                            </UniformGrid>
+                            <TextBlock Text="Hot Cues anlernen" Margin="0,18,0,8"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <UniformGrid Columns="3">
+                                <Button Content="Zurück lernen" Tag="Previous"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,8,0" Click="LearnAction_Click"/>
+                                <Button Content="Play lernen" Tag="PlayPause"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Margin="0,0,8,0" Click="LearnAction_Click"/>
+                                <Button Content="Weiter lernen" Tag="Next"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Click="LearnAction_Click"/>
+                            </UniformGrid>
+                            <TextBlock x:Name="MediaBindingsText" Text="Keine Tasten belegt"
+                                       Margin="0,12,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="2" Margin="0,12,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Kanäle" FontSize="27" FontWeight="Bold"/>
+                        <TextBlock Text="Programme und das aktive Spiel direkt mit deinem Hercules steuern"
+                                   Foreground="{DynamicResource MutedTextBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Channels.Count, StringFormat={}{0} Kanäle}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+                </Grid>
+
+                <ItemsControl Grid.Row="3" x:Name="ChannelsItems" ItemsSource="{Binding Channels}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:AppChannel}">
+                            <Border Style="{StaticResource Card}" Width="320">
+                                <StackPanel>
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="22"
+                                                       FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Subtitle}"
+                                                       Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Button Content="×" Tag="{Binding}"
+                                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                Background="#2A334B" Padding="9,4"
+                                                Click="RemoveProgram_Click"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,20,0,8">
+                                        <TextBlock Text="{Binding Role}"
+                                                   Foreground="{DynamicResource MutedTextBrush}"/>
+                                        <TextBlock Text="{Binding VolumePercent, StringFormat={}{0} %}"
+                                                   HorizontalAlignment="Right" FontWeight="Bold"/>
+                                    </Grid>
+
+                                    <Slider Minimum="0" Maximum="1"
+                                            Value="{Binding Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Tag="{Binding}" ValueChanged="ChannelSlider_ValueChanged"/>
+
+                                    <Grid Margin="0,14,0,0">
+                                        <Border Background="#102C29" CornerRadius="8" Padding="8,4"
+                                                HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding StatusText}"
+                                                       Foreground="{StaticResource Accent2Brush}"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding MidiText}" HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource MutedTextBrush}"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,14,0,0">
+                                        <Button Content="{Binding MuteButtonText}" Tag="{Binding}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                HorizontalAlignment="Left"
+                                                Click="ChannelMute_Click"/>
+                                        <Button Content="Fader zuweisen" Tag="{Binding}"
+                                                HorizontalAlignment="Right"
+                                                Click="LearnMidi_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Grid.Row="4" x:Name="EmptyState" Background="{DynamicResource PanelBrush}"
+                        CornerRadius="18" Padding="38" Visibility="Collapsed">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="Dein Mixer ist noch leer" FontSize="24" FontWeight="Bold"/>
+                        <TextBlock Text="Füge ein Programm oder den automatischen Game-Kanal hinzu."
+                                   Foreground="{DynamicResource MutedTextBrush}"
+                                   Margin="0,8,0,18" TextAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Content="+ Programm" Click="AddProgram_Click"/>
+                            <Button Content="+ Auto-Game" Margin="10,0,0,0"
+                                    Background="#244B45" Click="AddAutoGame_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</Window>

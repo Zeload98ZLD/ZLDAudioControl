@@ -1,0 +1,122 @@
+<Window x:Class="HerculesAudioControl.Views.ProcessPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Programm hinzufügen"
+        Width="720"
+        Height="700"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="{DynamicResource BackgroundBrush}">
+    <Grid Margin="26">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Programm hinzufügen"
+                       FontSize="30"
+                       FontWeight="Bold"/>
+            <TextBlock Text="Wähle einen Favoriten oder ein aktuell laufendes Programm."
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <TextBox x:Name="SearchBox"
+                 Grid.Row="1"
+                 Margin="0,20,0,18"
+                 Height="42"
+                 Padding="12,8"
+                 Background="{DynamicResource PanelBrush}"
+                 Foreground="{DynamicResource TextBrush}"
+                 BorderBrush="#28324B"
+                 TextChanged="SearchBox_TextChanged"/>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,14">
+            <TextBlock Text="SCHNELLAUSWAHL"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       Margin="0,0,0,10"/>
+            <WrapPanel>
+                <Button Content="Spotify" Tag="Spotify" Margin="0,0,8,8" Click="Preset_Click"/>
+                <Button Content="Discord" Tag="Discord" Margin="0,0,8,8" Background="#5865F2" Click="Preset_Click"/>
+                <Button Content="Chrome" Tag="chrome" Margin="0,0,8,8" Background="#2D7D46" Click="Preset_Click"/>
+                <Button Content="Firefox" Tag="firefox" Margin="0,0,8,8" Background="#A34BDB" Click="Preset_Click"/>
+                <Button Content="OBS" Tag="obs64" Margin="0,0,8,8" Background="#333A4F" Click="Preset_Click"/>
+                <Button Content="VLC" Tag="vlc" Margin="0,0,8,8" Background="#E67E22" Click="Preset_Click"/>
+                <Button Content="Teams" Tag="ms-teams" Margin="0,0,8,8" Background="#5059C9" Click="Preset_Click"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="LAUFENDE PROGRAMME"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       Margin="0,0,0,10"/>
+
+            <ListBox x:Name="ProcessList"
+                     Grid.Row="1"
+                     Background="{DynamicResource PanelBrush}"
+                     Foreground="{DynamicResource TextBrush}"
+                     BorderThickness="0"
+                     MouseDoubleClick="ProcessList_MouseDoubleClick">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Width="36" Height="36"
+                                    Background="#222C47"
+                                    CornerRadius="9">
+                                <TextBlock Text="{Binding Initial}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontWeight="Bold"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="{Binding DisplayName}"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding ProcessName}"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding Id, StringFormat=PID {0}}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,18,0,0">
+            <Button Content="Abbrechen"
+                    Background="#28324B"
+                    Margin="0,0,10,0"
+                    Click="Cancel_Click"/>
+            <Button Content="Hinzufügen"
+                    Click="Add_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
