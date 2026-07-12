@@ -1,0 +1,81 @@
+name: Release ZLD Audio Control
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: .NET 8 installieren
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Version aus Tag ermitteln
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Baue Version $version"
+
+      - name: Pakete wiederherstellen
+        run: dotnet restore .\ZLDAudioControl.csproj
+
+      - name: Windows-EXE veröffentlichen
+        shell: pwsh
+        run: |
+          dotnet publish .\ZLDAudioControl.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -o .\publish
+
+      - name: EXE umbenennen
+        shell: pwsh
+        run: |
+          Copy-Item `
+            .\publish\ZLDAudioControl.exe `
+            .\publish\ZLD-Audio-Control-${{ github.ref_name }}-win-x64.exe
+
+      - name: ZIP erstellen
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path .\publish\* `
+            -DestinationPath .\ZLD-Audio-Control-${{ github.ref_name }}-win-x64.zip `
+            -Force
+
+      - name: Build-Artefakt speichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZLD-Audio-Control-${{ github.ref_name }}
+          path: |
+            .\publish\ZLD-Audio-Control-${{ github.ref_name }}-win-x64.exe
+            .\ZLD-Audio-Control-${{ github.ref_name }}-win-x64.zip
+
+      - name: GitHub Release erstellen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            ".\publish\ZLD-Audio-Control-${{ github.ref_name }}-win-x64.exe" `
+            ".\ZLD-Audio-Control-${{ github.ref_name }}-win-x64.zip" `
+            --title "ZLD Audio Control ${{ github.ref_name }}" `
+            --generate-notes
