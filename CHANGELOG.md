@@ -1,13 +1,16 @@
 # Changelog
 
-## v1.0.3 – ZLD Neon Update
+## v1.0.4.2 – Neon UI Overhaul
 
-- Neues Theme **ZLD Neon**
-- Theme-Reihenfolge: Dark → Light → ZLD Neon
-- Neon-Farbpalette passend zum ZLD-Logo
-- Pinker Hauptakzent
-- Elektrisch-blauer Zweitakzent
-- Tiefviolette Oberflächen
-- Helles Cyan/Lavendel statt reinem Weiß
-- Theme-Auswahl wird dauerhaft gespeichert
-- Weitere Oberflächenfarben an das aktive Theme gekoppelt
+- Vollständig neu gestaltetes Hauptfenster
+- Weiße Hauptfläche vollständig entfernt
+- Dunkler Navy-/Violett-Verlauf als App-Hintergrund
+- Neon-Pink, Cyan und Lila passend zum ZLD-Logo
+- Leuchtende Karten mit feinen Neon-Rahmen
+- Neue Navigation in der Seitenleiste
+- Neue Header-, Kanal- und Statusdarstellung
+- Neon-Slider und leuchtende Bedienelemente
+- Neue untere Statusleiste
+- Light-Modus durch augenfreundliches Soft-Lavendel ersetzt
+- Neue Installationen starten direkt mit ZLD Neon
+- Bestehende Audio-, MIDI-, Profile-, EQ- und Update-Funktionen bleiben erhalten

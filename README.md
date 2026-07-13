@@ -1,4 +1,4 @@
-# ZLD Audio Control 1.0.3
+# ZLD Audio Control 1.0.4.2
 
 ZLD Audio Control verwandelt einen MIDI-/DJ-Controller in eine frei
 konfigurierbare Windows-Audiosteuerung.
@@ -104,3 +104,42 @@ ZLD Neon verwendet die Farben des Logos:
 - Lila
 - dunkle violette Flächen
 - helles Cyan/Lavendel statt reinem Weiß
+
+
+## One-Click Update
+
+Wenn eine neuere GitHub-Version erkannt wird, zeigt das Update Center jetzt
+zwei Möglichkeiten:
+
+- **Release-Seite öffnen**
+- **Update installieren**
+
+`Update installieren` lädt die veröffentlichte Windows-EXE herunter, beendet
+ZLD Audio Control, ersetzt die alte EXE und startet die neue Version.
+
+Wichtig: Das GitHub Release muss eine `.exe` als Release-Asset enthalten. Der
+vorhandene Release-Workflow erzeugt genau diese Datei.
+
+
+## Patch 1.0.4.1
+
+- Fehlenden `System.IO`-Import im Update-Service ergänzt.
+- Dadurch werden `Path`, `File`, `Directory`, `Stream` und `FileStream` korrekt erkannt.
+- Unbenutzte lokale Funktion entfernt.
+
+
+## Neon UI Overhaul
+
+Version 1.0.4.2 ersetzt die große weiße Fläche vollständig durch eine dunkle
+ZLD-Neon-Oberfläche.
+
+Die Farbwelt orientiert sich am ZLD-Logo:
+
+- Neon-Pink
+- elektrisches Cyan
+- leuchtendes Lila
+- tiefes Navy und Violett
+- keine weiße Hauptfläche
+
+Der bisherige Light-Modus ist nun ein gedämpftes Soft-Lavendel-Theme und
+dadurch ebenfalls deutlich augenfreundlicher.

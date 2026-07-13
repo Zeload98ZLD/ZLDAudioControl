@@ -3,7 +3,7 @@ namespace HerculesAudioControl.Models;
 public sealed class AppSettings
 {
     public string ActiveProfile { get; set; } = "Gaming";
-    public string Theme { get; set; } = "Dark";
+    public string Theme { get; set; } = "ZLD Neon";
     public UpdateSettings Update { get; set; } = new();
     public EqualizerSettings Equalizer { get; set; } = new();
     public List<ProfileSettings> Profiles { get; set; } = [];
