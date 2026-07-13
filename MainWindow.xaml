@@ -26,11 +26,11 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Border Background="{DynamicResource PanelHoverBrush}" Padding="20">
+        <Border Background="{DynamicResource SidebarBrush}" Padding="20">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
-                        <Border Width="44" Height="44" Background="{StaticResource AccentBrush}" CornerRadius="13">
+                        <Border Width="44" Height="44" Background="{DynamicResource AccentBrush}" CornerRadius="13">
                             <Image Source="/Assets/zld-logo.png"
                                    Stretch="UniformToFill"
                                    ClipToBounds="True"/>
@@ -43,14 +43,14 @@
 
                     <Button Content="⌂   Dashboard" HorizontalContentAlignment="Left"/>
                     <Button Content="🎛   Controller" HorizontalContentAlignment="Left"
-                            Background="#1A2440" Margin="0,8,0,0"/>
+                            Background="{DynamicResource PanelHoverBrush}" Margin="0,8,0,0"/>
                     <Button Content="♫   Equalizer" HorizontalContentAlignment="Left"
-                            Background="#1A2440" Margin="0,8,0,0"
+                            Background="{DynamicResource PanelHoverBrush}" Margin="0,8,0,0"
                             Click="OpenEqualizer_Click"/>
                     <Button Content="▣   Profile" HorizontalContentAlignment="Left"
-                            Background="#1A2440" Margin="0,8,0,0"/>
+                            Background="{DynamicResource PanelHoverBrush}" Margin="0,8,0,0"/>
                     <Button Content="↻   Updates" HorizontalContentAlignment="Left"
-                            Background="#1A2440" Margin="0,8,0,0"
+                            Background="{DynamicResource PanelHoverBrush}" Margin="0,8,0,0"
                             Click="OpenUpdates_Click"/>
 
                     <TextBlock Text="PROFIL" Margin="4,28,0,8"
@@ -71,7 +71,7 @@
                             <ComboBox x:Name="MidiDeviceCombo" Margin="0,9,0,10" Height="36"
                                       SelectionChanged="MidiDeviceCombo_SelectionChanged"/>
                             <TextBlock x:Name="MidiStatusText" Text="Nicht verbunden"
-                                       Foreground="{StaticResource Accent2Brush}" TextWrapping="Wrap"/>
+                                       Foreground="{DynamicResource Accent2Brush}" TextWrapping="Wrap"/>
                             <TextBlock x:Name="LastMidiText" Text="Letztes Signal: –"
                                        Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap"
                                        Foreground="{DynamicResource MutedTextBrush}"/>
@@ -130,7 +130,7 @@
                                            Foreground="{DynamicResource MutedTextBrush}"/>
                                 <Border HorizontalAlignment="Right" Background="#102C29"
                                         CornerRadius="8" Padding="8,4">
-                                    <TextBlock Text="SYSTEM" Foreground="{StaticResource Accent2Brush}"/>
+                                    <TextBlock Text="SYSTEM" Foreground="{DynamicResource Accent2Brush}"/>
                                 </Border>
                             </Grid>
                             <TextBlock x:Name="MasterPercentText" Text="0 %"
@@ -212,7 +212,7 @@
                                         </StackPanel>
                                         <Button Content="×" Tag="{Binding}"
                                                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                Background="#2A334B" Padding="9,4"
+                                                Background="{DynamicResource SecondaryBrush}" Padding="9,4"
                                                 Click="RemoveProgram_Click"/>
                                     </Grid>
 
@@ -231,7 +231,7 @@
                                         <Border Background="#102C29" CornerRadius="8" Padding="8,4"
                                                 HorizontalAlignment="Left">
                                             <TextBlock Text="{Binding StatusText}"
-                                                       Foreground="{StaticResource Accent2Brush}"/>
+                                                       Foreground="{DynamicResource Accent2Brush}"/>
                                         </Border>
                                         <TextBlock Text="{Binding MidiText}" HorizontalAlignment="Right"
                                                    VerticalAlignment="Center"

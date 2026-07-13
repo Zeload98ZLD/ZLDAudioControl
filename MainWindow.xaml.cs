@@ -485,11 +485,7 @@ public partial class MainWindow : Window
 
     private void ThemeToggle_Click(object sender, RoutedEventArgs e)
     {
-        _allSettings.Theme =
-            string.Equals(_allSettings.Theme, "Dark", StringComparison.OrdinalIgnoreCase)
-                ? "Light"
-                : "Dark";
-
+        _allSettings.Theme = ThemeService.Next(_allSettings.Theme);
         ThemeService.Apply(_allSettings.Theme);
         UpdateThemeButton();
         SaveAllSettings();
@@ -500,10 +496,7 @@ public partial class MainWindow : Window
         if (ThemeToggleButton is null)
             return;
 
-        ThemeToggleButton.Content =
-            string.Equals(_allSettings.Theme, "Dark", StringComparison.OrdinalIgnoreCase)
-                ? "☀ Light"
-                : "☾ Dark";
+        ThemeToggleButton.Content = ThemeService.ButtonLabel(_allSettings.Theme);
     }
 
     private void SaveAllSettings() => _settings.Save(_allSettings);

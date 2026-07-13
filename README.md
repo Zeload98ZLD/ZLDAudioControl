@@ -1,4 +1,4 @@
-# ZLD Audio Control 1.0.1
+# ZLD Audio Control 1.0.3
 
 ZLD Audio Control verwandelt einen MIDI-/DJ-Controller in eine frei
 konfigurierbare Windows-Audiosteuerung.
@@ -87,3 +87,20 @@ Visual Studio/.NET 8 wird sie über `build-release.cmd` erzeugt.
 ## Patch 1.0.1
 
 - Fehlenden `System.IO`-Import im Equalizer-Service ergänzt.
+
+
+## ZLD Neon Theme
+
+Der Theme-Schalter wechselt jetzt in dieser Reihenfolge:
+
+```text
+Dark → Light → ZLD Neon → Dark
+```
+
+ZLD Neon verwendet die Farben des Logos:
+
+- Pink
+- elektrisches Blau
+- Lila
+- dunkle violette Flächen
+- helles Cyan/Lavendel statt reinem Weiß

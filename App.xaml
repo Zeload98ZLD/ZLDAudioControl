@@ -6,18 +6,24 @@
         <Color x:Key="BackgroundColor">#0B1020</Color>
         <Color x:Key="PanelColor">#141B2D</Color>
         <Color x:Key="PanelHoverColor">#1A2440</Color>
+        <Color x:Key="SidebarColor">#0E1528</Color>
+        <Color x:Key="SecondaryColor">#28324B</Color>
         <Color x:Key="AccentColor">#7C5CFF</Color>
         <Color x:Key="Accent2Color">#00D4AA</Color>
         <Color x:Key="TextColor">#F5F7FF</Color>
         <Color x:Key="MutedTextColor">#9BA6C1</Color>
+        <Color x:Key="ButtonTextColor">#F5F7FF</Color>
 
         <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
         <SolidColorBrush x:Key="PanelBrush" Color="{StaticResource PanelColor}"/>
         <SolidColorBrush x:Key="PanelHoverBrush" Color="{StaticResource PanelHoverColor}"/>
+        <SolidColorBrush x:Key="SidebarBrush" Color="{StaticResource SidebarColor}"/>
+        <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource SecondaryColor}"/>
         <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
         <SolidColorBrush x:Key="Accent2Brush" Color="{StaticResource Accent2Color}"/>
         <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
         <SolidColorBrush x:Key="MutedTextBrush" Color="{StaticResource MutedTextColor}"/>
+        <SolidColorBrush x:Key="ButtonTextBrush" Color="{StaticResource ButtonTextColor}"/>
 
         <Style TargetType="Window">
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -26,8 +32,8 @@
         </Style>
 
         <Style TargetType="Button">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="16,10"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -47,7 +53,7 @@
         </Style>
 
         <Style TargetType="Slider">
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
     </Application.Resources>
 </Application>

@@ -112,7 +112,7 @@
                     HorizontalAlignment="Right"
                     Margin="0,18,0,0">
             <Button Content="Abbrechen"
-                    Background="#28324B"
+                    Background="{DynamicResource SecondaryBrush}"
                     Margin="0,0,10,0"
                     Click="Cancel_Click"/>
             <Button Content="Hinzufügen"

@@ -127,7 +127,7 @@
 
             <StackPanel Grid.Row="3" Orientation="Horizontal"
                         HorizontalAlignment="Right">
-                <Button Content="Zurücksetzen" Background="#28324B"
+                <Button Content="Zurücksetzen" Background="{DynamicResource SecondaryBrush}"
                         Margin="0,0,10,0" Click="Reset_Click"/>
                 <Button Content="Jetzt anwenden" Click="Apply_Click"/>
             </StackPanel>

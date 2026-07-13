@@ -28,7 +28,7 @@ public sealed class UpdateService
     }
 
     public static string CurrentVersion =>
-        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.3";
 
     public async Task<UpdateCheckResult> CheckAsync(UpdateSettings settings)
     {
