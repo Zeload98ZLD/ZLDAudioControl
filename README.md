@@ -1,4 +1,4 @@
-# ZLD Audio Control 1.0.5
+# ZLD Audio Control 1.0.5.6
 
 ZLD Audio Control verwandelt einen MIDI-/DJ-Controller in eine frei
 konfigurierbare Windows-Audiosteuerung.
@@ -165,3 +165,64 @@ Fehlt ein Spiel, muss es kurz Ton ausgeben. Danach im Dialog auf
 
 Mehrere Audiositzungen desselben Prozesses, etwa mehrere Chrome-Prozesse,
 werden als gemeinsamer Kanal geregelt.
+
+
+## Stabilitätsfix 1.0.5.1
+
+Der Dialog „Audioquelle hinzufügen“ darf die Anwendung nicht mehr schließen.
+Fehler des Windows-Audiosystems werden abgefangen und als Meldung angezeigt.
+
+Zusätzliche Fehlerprotokolle liegen unter:
+
+```text
+%APPDATA%\ZLDAudioControl\Logs
+```
+
+
+## Fix 1.0.5.2
+
+Der Audiopegel `PeakPercent` ist eine schreibgeschützte Anzeigeeigenschaft.
+Die WPF-Bindung verwendet nun ausdrücklich `Mode=OneWay`. Dadurch öffnet sich
+der Audioquellen-Dialog ohne Binding-Absturz und ohne wiederholte Fehlerfenster.
+
+
+## Multi-Device Audio Detection
+
+Die Audio-Engine durchsucht jetzt alle aktiven Windows-Wiedergabegeräte.
+Das ist wichtig, wenn Programme über unterschiedliche Geräte oder
+Windows-Audiozuweisungen ausgegeben werden.
+
+Chrome und andere Browser erscheinen nur, wenn ein Tab tatsächlich Audio
+ausgibt. Spotify muss ebenfalls eine aktive Audiositzung erzeugt haben.
+
+
+## Performance Update
+
+Version 1.0.5.4 optimiert die Hardware-Fadersteuerung.
+
+Hercules-Fader senden zwei MIDI-Nachrichten pro Bewegung. ZLD Audio Control
+wartet nun auf das vollständige Wertepaar, bevor die Lautstärke angewendet
+wird. Dadurch entstehen keine kurzen Sprünge durch unvollständige 14-Bit-Werte.
+
+Zusätzlich werden Wiedergabegeräte kurz zwischengespeichert und laufende
+Reglerbewegungen nicht mehr vom Hintergrund-Refresh überschrieben.
+
+
+## Fader Endpoint Fix
+
+Für die Windows-Lautstärke wird jetzt nur noch der stabile MIDI-Grobwert
+verwendet. Der zeitversetzt eintreffende Feinwert wird für Lautstärkekanäle
+ignoriert.
+
+Dadurch erreichen schnelle Bewegungen zuverlässig 0 % beziehungsweise 100 %
+und erzeugen keine zufälligen Werte mehr.
+
+
+## Guaranteed Endpoints
+
+Endanschläge werden in Version 1.0.5.6 nicht mehr gedrosselt. Eine letzte
+MIDI-Nachricht mit 0 beziehungsweise 127 wird immer sofort an Windows
+weitergegeben.
+
+Zusätzlich rasten die Bereiche 0–3 und 124–127 auf exakt 0 % beziehungsweise
+100 % ein.

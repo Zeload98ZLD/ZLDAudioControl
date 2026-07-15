@@ -10,6 +10,7 @@ public sealed record AudioSourceInfo(
     int ProcessId,
     string ProcessName,
     string DisplayName,
+    string DeviceName,
     float Volume,
     bool Muted,
     float Peak,
@@ -17,7 +18,14 @@ public sealed record AudioSourceInfo(
 {
     public int VolumePercent => (int)Math.Round(Volume * 100);
     public int PeakPercent => (int)Math.Round(Peak * 100);
-    public string StatusText => Muted ? "Stumm" : Peak > 0.001f ? "Gibt Ton aus" : "Audio bereit";
+
+    public string StatusText =>
+        Muted
+            ? "Stumm"
+            : Peak > 0.001f
+                ? "Gibt Ton aus"
+                : "Audio bereit";
+
     public string Initial =>
         string.IsNullOrWhiteSpace(DisplayName)
             ? "?"
@@ -28,6 +36,10 @@ public sealed class AudioService : IDisposable
 {
     private readonly MMDeviceEnumerator _enumerator = new();
     private MMDevice? _device;
+    private IReadOnlyList<MMDevice> _cachedRenderDevices = [];
+    private long _renderDeviceCacheTicks;
+
+    private const double RenderDeviceCacheLifetimeMs = 2500.0;
 
     private static readonly HashSet<string> GameDetectionIgnoredProcesses =
         new(StringComparer.OrdinalIgnoreCase)
@@ -53,7 +65,8 @@ public sealed class AudioService : IDisposable
             "firefox"
         };
 
-    public string OutputDeviceName => _device?.FriendlyName ?? "Kein Ausgabegerät";
+    public string OutputDeviceName =>
+        _device?.FriendlyName ?? "Kein Ausgabegerät";
 
     public AudioService() => RefreshDevice();
 
@@ -73,96 +86,129 @@ public sealed class AudioService : IDisposable
 
     public void SetMasterVolume(float value)
     {
-        if (_device is null) return;
+        if (_device is null)
+            return;
+
         _device.AudioEndpointVolume.MasterVolumeLevelScalar =
             Math.Clamp(value, 0f, 1f);
     }
 
     public void SetMasterMute(bool muted)
     {
-        if (_device is null) return;
+        if (_device is null)
+            return;
+
         _device.AudioEndpointVolume.Mute = muted;
     }
 
     public IReadOnlyList<AudioSourceInfo> GetAudioSources(
         IEnumerable<string>? excludedProcessNames = null)
     {
-        if (_device is null)
-            return [];
-
         var excluded = (excludedProcessNames ?? [])
             .Select(Path.GetFileNameWithoutExtension)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var sources = new Dictionary<string, MutableAudioSource>(
             StringComparer.OrdinalIgnoreCase);
 
-        SessionCollection sessions = _device.AudioSessionManager.Sessions;
-
-        for (int index = 0; index < sessions.Count; index++)
+        foreach (MMDevice device in GetActiveRenderDevices())
         {
-            AudioSessionControl session = sessions[index];
-
             try
             {
-                uint processId = session.GetProcessID;
-                if (processId == 0)
-                    continue;
+                SessionCollection sessions =
+                    device.AudioSessionManager.Sessions;
 
-                using Process process =
-                    Process.GetProcessById((int)processId);
-
-                string processName = process.ProcessName;
-
-                if (excluded.Contains(processName))
-                    continue;
-
-                float volume = session.SimpleAudioVolume.Volume;
-                bool muted = session.SimpleAudioVolume.Mute;
-                float peak = GetPeak(session);
-
-                string displayName = GetSessionDisplayName(
-                    session,
-                    process,
-                    processName);
-
-                if (!sources.TryGetValue(
-                        processName,
-                        out MutableAudioSource? source))
+                for (int index = 0; index < sessions.Count; index++)
                 {
-                    source = new MutableAudioSource
+                    AudioSessionControl session = sessions[index];
+
+                    try
                     {
-                        ProcessId = process.Id,
-                        ProcessName = processName,
-                        DisplayName = displayName,
-                        Volume = volume,
-                        Muted = muted,
-                        Peak = peak,
-                        SessionCount = 1
-                    };
+                        uint processId = session.GetProcessID;
+                        if (processId == 0)
+                            continue;
 
-                    sources[processName] = source;
-                    continue;
-                }
+                        using Process process =
+                            Process.GetProcessById((int)processId);
 
-                source.SessionCount++;
-                source.Peak = Math.Max(source.Peak, peak);
-                source.Volume = Math.Max(source.Volume, volume);
-                source.Muted &= muted;
+                        string processName = process.ProcessName;
 
-                if (source.DisplayName.Equals(
-                        source.ProcessName,
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !displayName.Equals(
-                        processName,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    source.DisplayName = displayName;
+                        if (excluded.Contains(processName))
+                            continue;
+
+                        float volume =
+                            session.SimpleAudioVolume.Volume;
+
+                        bool muted =
+                            session.SimpleAudioVolume.Mute;
+
+                        float peak = GetPeak(session);
+
+                        string displayName = GetSessionDisplayName(
+                            session,
+                            process,
+                            processName);
+
+                        string key = processName;
+
+                        if (!sources.TryGetValue(
+                                key,
+                                out MutableAudioSource? source))
+                        {
+                            sources[key] = new MutableAudioSource
+                            {
+                                ProcessId = process.Id,
+                                ProcessName = processName,
+                                DisplayName = displayName,
+                                DeviceName = device.FriendlyName,
+                                Volume = volume,
+                                Muted = muted,
+                                Peak = peak,
+                                SessionCount = 1
+                            };
+
+                            continue;
+                        }
+
+                        source.SessionCount++;
+                        source.Peak = Math.Max(source.Peak, peak);
+                        source.Volume = Math.Max(source.Volume, volume);
+                        source.Muted &= muted;
+
+                        if (!source.DeviceName.Contains(
+                                device.FriendlyName,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            source.DeviceName +=
+                                $" + {device.FriendlyName}";
+                        }
+
+                        if (source.DisplayName.Equals(
+                                source.ProcessName,
+                                StringComparison.OrdinalIgnoreCase) &&
+                            !displayName.Equals(
+                                processName,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            source.DisplayName = displayName;
+                        }
+                    }
+                    catch
+                    {
+                        // Einzelne ungültige oder geschützte Sitzung überspringen.
+                    }
                 }
             }
             catch
             {
-                // Beendete oder geschützte Audiositzungen überspringen.
+                // Ein fehlerhaftes Ausgabegerät darf die restliche Suche
+                // nicht verhindern.
+            }
+            finally
+            {
+                // Das Gerät bleibt für kurze Zeit im Cache.
             }
         }
 
@@ -171,6 +217,7 @@ public sealed class AudioService : IDisposable
                 source.ProcessId,
                 source.ProcessName,
                 source.DisplayName,
+                source.DeviceName,
                 source.Volume,
                 source.Muted,
                 source.Peak,
@@ -181,54 +228,44 @@ public sealed class AudioService : IDisposable
             .ToList();
     }
 
-    public bool TrySetProcessVolume(string processName, float volume)
+    public bool TrySetProcessVolume(
+        string processName,
+        float volume)
     {
-        string wanted = Path.GetFileNameWithoutExtension(processName);
+        string wanted =
+            Path.GetFileNameWithoutExtension(processName);
+
         bool found = false;
 
-        foreach (SessionSnapshot item in GetSessionSnapshots())
-        {
-            try
+        ForEachMatchingSession(
+            wanted,
+            session =>
             {
-                if (!item.ProcessName.Equals(
-                        wanted,
-                        StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                item.Session.SimpleAudioVolume.Volume =
+                session.SimpleAudioVolume.Volume =
                     Math.Clamp(volume, 0f, 1f);
 
                 found = true;
-            }
-            catch
-            {
-            }
-        }
+            });
 
         return found;
     }
 
-    public bool TrySetProcessMute(string processName, bool muted)
+    public bool TrySetProcessMute(
+        string processName,
+        bool muted)
     {
-        string wanted = Path.GetFileNameWithoutExtension(processName);
+        string wanted =
+            Path.GetFileNameWithoutExtension(processName);
+
         bool found = false;
 
-        foreach (SessionSnapshot item in GetSessionSnapshots())
-        {
-            try
+        ForEachMatchingSession(
+            wanted,
+            session =>
             {
-                if (!item.ProcessName.Equals(
-                        wanted,
-                        StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                item.Session.SimpleAudioVolume.Mute = muted;
+                session.SimpleAudioVolume.Mute = muted;
                 found = true;
-            }
-            catch
-            {
-            }
-        }
+            });
 
         return found;
     }
@@ -236,29 +273,26 @@ public sealed class AudioService : IDisposable
     public (float Volume, bool Muted)? TryGetProcessState(
         string processName)
     {
-        string wanted = Path.GetFileNameWithoutExtension(processName);
-        var matches = GetSessionSnapshots()
-            .Where(item => item.ProcessName.Equals(
-                wanted,
-                StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        string wanted =
+            Path.GetFileNameWithoutExtension(processName);
 
-        if (matches.Count == 0)
+        var volumes = new List<float>();
+        var muteValues = new List<bool>();
+
+        ForEachMatchingSession(
+            wanted,
+            session =>
+            {
+                volumes.Add(session.SimpleAudioVolume.Volume);
+                muteValues.Add(session.SimpleAudioVolume.Mute);
+            });
+
+        if (volumes.Count == 0)
             return null;
 
-        float volume = matches.Max(item =>
-        {
-            try { return item.Session.SimpleAudioVolume.Volume; }
-            catch { return 0f; }
-        });
-
-        bool muted = matches.All(item =>
-        {
-            try { return item.Session.SimpleAudioVolume.Mute; }
-            catch { return false; }
-        });
-
-        return (volume, muted);
+        return (
+            volumes.Max(),
+            muteValues.Count > 0 && muteValues.All(value => value));
     }
 
     public string? GetForegroundProcessName()
@@ -268,6 +302,7 @@ public sealed class AudioService : IDisposable
             return null;
 
         GetWindowThreadProcessId(window, out uint processId);
+
         if (processId == 0)
             return null;
 
@@ -286,16 +321,18 @@ public sealed class AudioService : IDisposable
 
     public string? FindBestGameAudioProcess()
     {
-        IReadOnlyList<AudioSourceInfo> sources = GetAudioSources();
+        IReadOnlyList<AudioSourceInfo> sources =
+            GetAudioSources();
 
         string? foreground = GetForegroundProcessName();
 
         if (!string.IsNullOrWhiteSpace(foreground))
         {
-            AudioSourceInfo? foregroundSource = sources.FirstOrDefault(
-                source => source.ProcessName.Equals(
-                    foreground,
-                    StringComparison.OrdinalIgnoreCase));
+            AudioSourceInfo? foregroundSource =
+                sources.FirstOrDefault(source =>
+                    source.ProcessName.Equals(
+                        foreground,
+                        StringComparison.OrdinalIgnoreCase));
 
             if (foregroundSource is not null)
                 return foregroundSource.ProcessName;
@@ -303,7 +340,8 @@ public sealed class AudioService : IDisposable
 
         return sources
             .Where(source =>
-                !GameDetectionIgnoredProcesses.Contains(source.ProcessName))
+                !GameDetectionIgnoredProcesses.Contains(
+                    source.ProcessName))
             .OrderByDescending(source => source.Peak)
             .ThenByDescending(source => source.SessionCount)
             .Select(source => source.ProcessName)
@@ -312,9 +350,10 @@ public sealed class AudioService : IDisposable
 
     public void RefreshChannel(AppChannel channel)
     {
-        string? processName = channel.Kind == ChannelKind.AutoGame
-            ? FindBestGameAudioProcess()
-            : channel.ProcessName;
+        string? processName =
+            channel.Kind == ChannelKind.AutoGame
+                ? FindBestGameAudioProcess()
+                : channel.ProcessName;
 
         if (channel.Kind == ChannelKind.AutoGame)
             channel.ActiveTarget = processName ?? "";
@@ -322,15 +361,19 @@ public sealed class AudioService : IDisposable
         if (string.IsNullOrWhiteSpace(processName))
         {
             channel.IsAvailable = false;
-            channel.StatusText = "Keine passende Audioquelle erkannt";
+            channel.StatusText =
+                "Keine passende Audioquelle erkannt";
+
             return;
         }
 
         var state = TryGetProcessState(processName);
+
         channel.IsAvailable = state.HasValue;
-        channel.StatusText = state.HasValue
-            ? "Aktiv"
-            : "Wartet auf Audio";
+        channel.StatusText =
+            state.HasValue
+                ? "Aktiv"
+                : "Wartet auf Audio";
 
         if (state.HasValue)
         {
@@ -339,21 +382,27 @@ public sealed class AudioService : IDisposable
         }
     }
 
-    public bool SetChannelVolume(AppChannel channel, float volume)
+    public bool SetChannelVolume(
+        AppChannel channel,
+        float volume)
     {
-        string? processName = channel.Kind == ChannelKind.AutoGame
-            ? channel.ActiveTarget
-            : channel.ProcessName;
+        string? processName =
+            channel.Kind == ChannelKind.AutoGame
+                ? channel.ActiveTarget
+                : channel.ProcessName;
 
         return !string.IsNullOrWhiteSpace(processName) &&
                TrySetProcessVolume(processName, volume);
     }
 
-    public bool SetChannelMute(AppChannel channel, bool muted)
+    public bool SetChannelMute(
+        AppChannel channel,
+        bool muted)
     {
-        string? processName = channel.Kind == ChannelKind.AutoGame
-            ? channel.ActiveTarget
-            : channel.ProcessName;
+        string? processName =
+            channel.Kind == ChannelKind.AutoGame
+                ? channel.ActiveTarget
+                : channel.ProcessName;
 
         return !string.IsNullOrWhiteSpace(processName) &&
                TrySetProcessMute(processName, muted);
@@ -361,44 +410,104 @@ public sealed class AudioService : IDisposable
 
     public void Dispose()
     {
+        foreach (MMDevice cachedDevice in _cachedRenderDevices)
+            cachedDevice.Dispose();
+
+        _cachedRenderDevices = [];
         _device?.Dispose();
         _enumerator.Dispose();
     }
 
-    private IReadOnlyList<SessionSnapshot> GetSessionSnapshots()
+    private IReadOnlyList<MMDevice> GetActiveRenderDevices()
     {
-        if (_device is null)
-            return [];
+        long now = Stopwatch.GetTimestamp();
 
-        var result = new List<SessionSnapshot>();
-        SessionCollection sessions = _device.AudioSessionManager.Sessions;
-
-        for (int index = 0; index < sessions.Count; index++)
+        if (_cachedRenderDevices.Count > 0)
         {
-            AudioSessionControl session = sessions[index];
+            double ageMs =
+                (now - _renderDeviceCacheTicks) *
+                1000.0 /
+                Stopwatch.Frequency;
 
+            if (ageMs < RenderDeviceCacheLifetimeMs)
+                return _cachedRenderDevices;
+        }
+
+        try
+        {
+            foreach (MMDevice cachedDevice in _cachedRenderDevices)
+                cachedDevice.Dispose();
+
+            MMDeviceCollection devices =
+                _enumerator.EnumerateAudioEndPoints(
+                    DataFlow.Render,
+                    DeviceState.Active);
+
+            _cachedRenderDevices = devices
+                .Where(device => device.State == DeviceState.Active)
+                .ToList();
+
+            _renderDeviceCacheTicks = now;
+            return _cachedRenderDevices;
+        }
+        catch
+        {
+            _cachedRenderDevices = [];
+            return [];
+        }
+    }
+
+    private void ForEachMatchingSession(
+        string processName,
+        Action<AudioSessionControl> action)
+    {
+        foreach (MMDevice device in GetActiveRenderDevices())
+        {
             try
             {
-                uint processId = session.GetProcessID;
-                if (processId == 0)
-                    continue;
+                SessionCollection sessions =
+                    device.AudioSessionManager.Sessions;
 
-                using Process process =
-                    Process.GetProcessById((int)processId);
+                for (int index = 0; index < sessions.Count; index++)
+                {
+                    AudioSessionControl session = sessions[index];
 
-                result.Add(new SessionSnapshot(
-                    session,
-                    process.ProcessName));
+                    try
+                    {
+                        uint processId = session.GetProcessID;
+
+                        if (processId == 0)
+                            continue;
+
+                        using Process process =
+                            Process.GetProcessById((int)processId);
+
+                        if (!process.ProcessName.Equals(
+                                processName,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        action(session);
+                    }
+                    catch
+                    {
+                    }
+                }
             }
             catch
             {
             }
+            finally
+            {
+                // Das Gerät bleibt für kurze Zeit im Cache.
+            }
         }
-
-        return result;
     }
 
-    private static float GetPeak(AudioSessionControl session)
+    private static float GetPeak(
+        AudioSessionControl session)
     {
         try
         {
@@ -418,7 +527,9 @@ public sealed class AudioService : IDisposable
         try
         {
             if (!string.IsNullOrWhiteSpace(session.DisplayName) &&
-                !session.DisplayName.StartsWith("@", StringComparison.Ordinal))
+                !session.DisplayName.StartsWith(
+                    "@",
+                    StringComparison.Ordinal))
             {
                 return session.DisplayName;
             }
@@ -429,8 +540,11 @@ public sealed class AudioService : IDisposable
 
         try
         {
-            if (!string.IsNullOrWhiteSpace(process.MainWindowTitle))
+            if (!string.IsNullOrWhiteSpace(
+                    process.MainWindowTitle))
+            {
                 return process.MainWindowTitle;
+            }
         }
         catch
         {
@@ -439,7 +553,8 @@ public sealed class AudioService : IDisposable
         return FriendlyProcessName(fallback);
     }
 
-    private static string FriendlyProcessName(string processName)
+    private static string FriendlyProcessName(
+        string processName)
     {
         return processName.ToLowerInvariant() switch
         {
@@ -460,15 +575,12 @@ public sealed class AudioService : IDisposable
         public int ProcessId { get; set; }
         public string ProcessName { get; set; } = "";
         public string DisplayName { get; set; } = "";
+        public string DeviceName { get; set; } = "";
         public float Volume { get; set; }
         public bool Muted { get; set; }
         public float Peak { get; set; }
         public int SessionCount { get; set; }
     }
-
-    private sealed record SessionSnapshot(
-        AudioSessionControl Session,
-        string ProcessName);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();

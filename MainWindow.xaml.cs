@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,7 +29,13 @@ public partial class MainWindow : Window
     private string? _learningAction;
     private readonly List<(int Status, int Controller)> _learnedKeys = [];
     private readonly Dictionary<string, Dictionary<int, int>> _midiState = [];
+    private readonly Dictionary<string, long> _lastMidiApplyTicks = [];
+    private readonly Dictionary<string, float> _lastAppliedMidiValues = [];
+    private readonly Dictionary<string, long> _recentManualControlTicks = [];
     private EqualizerWindow? _equalizerWindow;
+
+    private const double MidiApplyIntervalMs = 12.0;
+    private const double ManualControlHoldMs = 700.0;
 
     public ObservableCollection<AppChannel> Channels { get; } = [];
 
@@ -52,7 +59,7 @@ public partial class MainWindow : Window
         _midi.ControlMessageReceived += (_, message) =>
             Dispatcher.Invoke(() => HandleMidi(message));
 
-        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1400) };
         _refreshTimer.Tick += (_, _) => RefreshAudio();
         _refreshTimer.Start();
 
@@ -155,38 +162,68 @@ public partial class MainWindow : Window
     private void RefreshAudio()
     {
         _updating = true;
+
         try
         {
-            float master = _audio.GetMasterVolume();
-            _masterMuted = _audio.GetMasterMute();
-            MasterSlider.Value = master * 100;
-            MasterPercentText.Text = $"{Math.Round(master * 100)} %";
-            MasterMuteButton.Content = _masterMuted ? "Ton an" : "Stumm";
+            if (!WasRecentlyControlled("master"))
+            {
+                float master = _audio.GetMasterVolume();
+                _masterMuted = _audio.GetMasterMute();
+                MasterSlider.Value = master * 100;
+                MasterPercentText.Text = $"{Math.Round(master * 100)} %";
+                MasterMuteButton.Content = _masterMuted ? "Ton an" : "Stumm";
+            }
 
-            foreach (AppChannel c in Channels)
-                _audio.RefreshChannel(c);
+            foreach (AppChannel channel in Channels)
+            {
+                if (!WasRecentlyControlled(channel.Id))
+                    _audio.RefreshChannel(channel);
+            }
         }
-        finally { _updating = false; }
+        finally
+        {
+            _updating = false;
+        }
     }
 
     private void AddProgram_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new ProcessPickerWindow(
-            _audio,
-            Channels
-                .Where(channel => channel.Kind == ChannelKind.Application)
-                .Select(channel => channel.ProcessName))
-        {
-            Owner = this
-        };
+        AudioSourceInfo? source;
 
-        if (picker.ShowDialog() != true ||
-            picker.SelectedProcess is null)
+        try
         {
+            var picker = new ProcessPickerWindow(
+                _audio,
+                Channels
+                    .Where(channel =>
+                        channel.Kind == ChannelKind.Application)
+                    .Select(channel => channel.ProcessName))
+            {
+                Owner = this
+            };
+
+            if (picker.ShowDialog() != true ||
+                picker.SelectedProcess is null)
+            {
+                return;
+            }
+
+            source = picker.SelectedProcess;
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(
+                this,
+                "Der Audioquellen-Dialog konnte nicht geöffnet werden.\n\n" +
+                exception.Message,
+                "ZLD Audio Control",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
             return;
         }
 
-        AudioSourceInfo source = picker.SelectedProcess;
+        
 
         var channel = new AppChannel
         {
@@ -272,20 +309,39 @@ public partial class MainWindow : Window
         if (Matches(_profile.PreviousMidi, m) && m.Value > 0) MediaKeyService.Previous();
         if (Matches(_profile.NextMidi, m) && m.Value > 0) MediaKeyService.Next();
 
-        if (Matches(_profile.MasterMidi, m))
+        if (Matches(_profile.MasterMidi, m) &&
+            TryCalculateStableMidiValue(
+                "master",
+                _profile.MasterMidi,
+                m,
+                out float masterVolume))
         {
-            float volume = CalculateValue("master", _profile.MasterMidi, m);
-            _audio.SetMasterVolume(volume);
+            MarkManualControl("master");
+            _audio.SetMasterVolume(masterVolume);
+            MasterSlider.Value = masterVolume * 100;
+            MasterPercentText.Text = $"{Math.Round(masterVolume * 100)} %";
         }
 
         HandleEqualizerMidi(m);
 
-        foreach (AppChannel c in Channels)
+        foreach (AppChannel channel in Channels)
         {
-            if (!Matches(c.Midi, m)) continue;
-            float volume = CalculateValue(c.Id, c.Midi, m);
-            c.Volume = volume;
-            c.IsAvailable = _audio.SetChannelVolume(c, volume);
+            if (!Matches(channel.Midi, m))
+                continue;
+
+            if (!TryCalculateStableMidiValue(
+                    channel.Id,
+                    channel.Midi,
+                    m,
+                    out float volume))
+            {
+                continue;
+            }
+
+            MarkManualControl(channel.Id);
+            channel.Volume = volume;
+            channel.IsAvailable =
+                _audio.SetChannelVolume(channel, volume);
         }
     }
 
@@ -294,24 +350,137 @@ public partial class MainWindow : Window
         binding.Status == m.Status &&
         binding.Controllers.Contains(m.Controller);
 
-    private float CalculateValue(string id, MidiBinding binding, MidiControlMessage m)
+    private bool TryCalculateStableMidiValue(
+        string id,
+        MidiBinding binding,
+        MidiControlMessage message,
+        out float value)
     {
-        if (!_midiState.TryGetValue(id, out var state))
+        value = 0f;
+
+        if (!_midiState.TryGetValue(
+                id,
+                out Dictionary<int, int>? state))
         {
             state = [];
             _midiState[id] = state;
         }
 
-        state[m.Controller] = m.Value;
+        state[message.Controller] = message.Value;
+
+        // Für Lautstärke verwenden wir bewusst nur den stabilen
+        // Grobwert (7 Bit). Der zweite Hercules-Wert ist ein Feinwert,
+        // der bei schnellen Bewegungen zeitversetzt eintreffen kann.
+        // Das Kombinieren beider Werte führte deshalb zu falschen
+        // Endwerten wie 87 %, 98 % oder 23 %.
+        //
+        // 128 Lautstärkestufen sind für Windows-Audio vollkommen
+        // ausreichend und garantieren exakte Endanschläge.
+        if (binding.Controllers.Count >= 2)
+        {
+            int primaryController = binding.Controllers.Min();
+
+            if (message.Controller != primaryController)
+                return false;
+
+            value = message.Value switch
+            {
+                <= 3 => 0f,
+                >= 124 => 1f,
+                _ => message.Value / 127f
+            };
+        }
+        else
+        {
+            value = message.Value switch
+            {
+                <= 3 => 0f,
+                >= 124 => 1f,
+                _ => message.Value / 127f
+            };
+        }
+
+        value = Math.Clamp(value, 0f, 1f);
+
+        // Endanschläge müssen immer sofort verarbeitet werden.
+        // Sonst kann die letzte 0/127-Nachricht durch das Throttling
+        // verloren gehen und der Regler bleibt bei einem Zwischenwert.
+        bool isEndpoint = value <= 0.001f || value >= 0.999f;
+
+        if (_lastAppliedMidiValues.TryGetValue(
+                id,
+                out float previousValue) &&
+            Math.Abs(previousValue - value) < 0.0001f)
+        {
+            return false;
+        }
+
+        long now = Stopwatch.GetTimestamp();
+
+        if (!isEndpoint &&
+            _lastMidiApplyTicks.TryGetValue(id, out long previousTicks))
+        {
+            double elapsedMs =
+                (now - previousTicks) *
+                1000.0 /
+                Stopwatch.Frequency;
+
+            if (elapsedMs < MidiApplyIntervalMs)
+                return false;
+        }
+
+        _lastMidiApplyTicks[id] = now;
+        _lastAppliedMidiValues[id] = value;
+        return true;
+    }
+
+    private float CalculateValue(
+        string id,
+        MidiBinding binding,
+        MidiControlMessage message)
+    {
+        if (!_midiState.TryGetValue(
+                id,
+                out Dictionary<int, int>? state))
+        {
+            state = [];
+            _midiState[id] = state;
+        }
+
+        state[message.Controller] = message.Value;
 
         if (binding.Controllers.Count >= 2)
         {
-            int msb = state.GetValueOrDefault(binding.Controllers[0], 0);
-            int lsb = state.GetValueOrDefault(binding.Controllers[1], 0);
+            int msb =
+                state.GetValueOrDefault(binding.Controllers[0], 0);
+
+            int lsb =
+                state.GetValueOrDefault(binding.Controllers[1], 0);
+
             return ((msb << 7) | lsb) / 16383f;
         }
 
-        return m.Value / 127f;
+        return message.Value / 127f;
+    }
+
+    private void MarkManualControl(string id) =>
+        _recentManualControlTicks[id] = Stopwatch.GetTimestamp();
+
+    private bool WasRecentlyControlled(string id)
+    {
+        if (!_recentManualControlTicks.TryGetValue(
+                id,
+                out long lastTicks))
+        {
+            return false;
+        }
+
+        double elapsedMs =
+            (Stopwatch.GetTimestamp() - lastTicks) *
+            1000.0 /
+            Stopwatch.Frequency;
+
+        return elapsedMs < ManualControlHoldMs;
     }
 
     private void FinishLearning()
@@ -361,6 +530,7 @@ public partial class MainWindow : Window
     private void MasterSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_updating) return;
+        MarkManualControl("master");
         _audio.SetMasterVolume((float)(e.NewValue / 100.0));
         MasterPercentText.Text = $"{Math.Round(e.NewValue)} %";
     }
@@ -377,6 +547,7 @@ public partial class MainWindow : Window
         if (_updating) return;
         if (sender is Slider { Tag: AppChannel c })
         {
+            MarkManualControl(c.Id);
             c.Volume = (float)e.NewValue;
             c.IsAvailable = _audio.SetChannelVolume(c, c.Volume);
         }

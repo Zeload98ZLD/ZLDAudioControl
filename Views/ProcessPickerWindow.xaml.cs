@@ -11,6 +11,7 @@ public partial class ProcessPickerWindow : Window
     private readonly AudioService _audioService;
     private readonly HashSet<string> _excludedProcessNames;
     private List<AudioSourceInfo> _allSources = [];
+    private bool _isLoading;
 
     public AudioSourceInfo? SelectedProcess { get; private set; }
 
@@ -22,22 +23,57 @@ public partial class ProcessPickerWindow : Window
 
         _audioService = audioService;
         _excludedProcessNames = excludedProcessNames
-            .Select(Path.GetFileNameWithoutExtension)
+            .Select(name => Path.GetFileNameWithoutExtension(name))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        RefreshSources();
+        Loaded += (_, _) => RefreshSourcesSafely();
     }
 
-    private void RefreshSources()
+    private void RefreshSourcesSafely()
     {
-        _allSources = _audioService
-            .GetAudioSources(_excludedProcessNames)
-            .ToList();
+        if (_isLoading)
+            return;
 
-        ApplyFilter(SearchBox.Text);
+        _isLoading = true;
+
+        try
+        {
+            SourceCountText.Text = "Audioquellen werden gesucht …";
+
+            _allSources = _audioService
+                .GetAudioSources(_excludedProcessNames)
+                .ToList();
+
+            ApplyFilter(SearchBox.Text);
+        }
+        catch (Exception exception)
+        {
+            _allSources = [];
+            ProcessList.ItemsSource = null;
+            ProcessList.Visibility = Visibility.Collapsed;
+            EmptyState.Visibility = Visibility.Visible;
+            SourceCountText.Text = "Fehler beim Auslesen";
+
+            MessageBox.Show(
+                this,
+                "Die Windows-Audioquellen konnten nicht vollständig " +
+                "ausgelesen werden.\n\n" +
+                exception.Message +
+                "\n\nDie Anwendung bleibt geöffnet. Starte eine " +
+                "Audioausgabe und versuche anschließend erneut zu aktualisieren.",
+                "ZLD Audio Control – Audioquellen",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
-    private void ApplyFilter(string query)
+    private void ApplyFilter(string? query)
     {
         IEnumerable<AudioSourceInfo> filtered = _allSources;
 
@@ -69,13 +105,18 @@ public partial class ProcessPickerWindow : Window
             : Visibility.Visible;
     }
 
-    private void Refresh_Click(object sender, RoutedEventArgs e) =>
-        RefreshSources();
+    private void Refresh_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        RefreshSourcesSafely();
 
     private void SearchBox_TextChanged(
         object sender,
-        TextChangedEventArgs e) =>
-        ApplyFilter(SearchBox.Text);
+        TextChangedEventArgs e)
+    {
+        if (!_isLoading)
+            ApplyFilter(SearchBox.Text);
+    }
 
     private void Add_Click(
         object sender,
@@ -110,4 +151,3 @@ public partial class ProcessPickerWindow : Window
         RoutedEventArgs e) =>
         DialogResult = false;
 }
-

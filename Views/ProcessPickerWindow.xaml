@@ -94,7 +94,7 @@
                                         Background="{DynamicResource PanelHoverBrush}"
                                         BorderBrush="{DynamicResource AccentBrush}"
                                         BorderThickness="1">
-                                    <TextBlock Text="{Binding Initial}"
+                                    <TextBlock Text="{Binding Initial, Mode=OneWay}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
                                                FontSize="18"
@@ -104,32 +104,37 @@
 
                                 <StackPanel Grid.Column="1"
                                             Margin="12,0,12,0">
-                                    <TextBlock Text="{Binding DisplayName}"
+                                    <TextBlock Text="{Binding DisplayName, Mode=OneWay}"
                                                FontSize="17"
                                                FontWeight="SemiBold"
                                                TextTrimming="CharacterEllipsis"/>
-                                    <StackPanel Orientation="Horizontal"
-                                                Margin="0,4,0,0">
-                                        <TextBlock Text="{Binding ProcessName}"
-                                                   Foreground="{DynamicResource MutedTextBrush}"/>
-                                        <TextBlock Text="{Binding SessionCount, StringFormat={} · {0} Sitzung(en)}"
-                                                   Foreground="{DynamicResource MutedTextBrush}"/>
+                                    <StackPanel Margin="0,4,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding ProcessName, Mode=OneWay}"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                            <TextBlock Text="{Binding SessionCount, Mode=OneWay, StringFormat={} · {0} Sitzung(en)}"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding DeviceName, Mode=OneWay}"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource Accent3Brush}"/>
                                     </StackPanel>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2"
                                             VerticalAlignment="Center">
                                     <Grid>
-                                        <TextBlock Text="{Binding StatusText}"
+                                        <TextBlock Text="{Binding StatusText, Mode=OneWay}"
                                                    Foreground="{DynamicResource Accent2Brush}"/>
-                                        <TextBlock Text="{Binding VolumePercent, StringFormat={}{0} %}"
+                                        <TextBlock Text="{Binding VolumePercent, Mode=OneWay, StringFormat={}{0} %}"
                                                    HorizontalAlignment="Right"
                                                    FontWeight="Bold"
                                                    Foreground="{DynamicResource AccentBrush}"/>
                                     </Grid>
                                     <ProgressBar Minimum="0"
                                                  Maximum="100"
-                                                 Value="{Binding PeakPercent}"
+                                                 Value="{Binding PeakPercent, Mode=OneWay}"
                                                  Height="7"
                                                  Margin="0,7,0,0"
                                                  Foreground="{DynamicResource Accent2Brush}"
