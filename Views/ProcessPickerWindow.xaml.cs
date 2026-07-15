@@ -1,132 +1,111 @@
-using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using HerculesAudioControl.Services;
 
 namespace HerculesAudioControl.Views;
 
 public partial class ProcessPickerWindow : Window
 {
-    private readonly List<ProcessChoice> _allProcesses = [];
+    private readonly AudioService _audioService;
+    private readonly HashSet<string> _excludedProcessNames;
+    private List<AudioSourceInfo> _allSources = [];
 
-    private static readonly Dictionary<string, (string ProcessName, string DisplayName)> Presets =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Spotify"] = ("Spotify", "Spotify"),
-            ["Discord"] = ("Discord", "Discord"),
-            ["chrome"] = ("chrome", "Google Chrome"),
-            ["firefox"] = ("firefox", "Mozilla Firefox"),
-            ["obs64"] = ("obs64", "OBS Studio"),
-            ["vlc"] = ("vlc", "VLC media player"),
-            ["ms-teams"] = ("ms-teams", "Microsoft Teams")
-        };
+    public AudioSourceInfo? SelectedProcess { get; private set; }
 
-    public ProcessChoice? SelectedProcess { get; private set; }
-
-    public ProcessPickerWindow(IEnumerable<string> excludedProcessNames)
+    public ProcessPickerWindow(
+        AudioService audioService,
+        IEnumerable<string> excludedProcessNames)
     {
         InitializeComponent();
 
-        var excluded = excludedProcessNames
+        _audioService = audioService;
+        _excludedProcessNames = excludedProcessNames
             .Select(Path.GetFileNameWithoutExtension)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        RefreshSources();
+    }
 
-        foreach (Process process in Process.GetProcesses()
-                     .OrderBy(p => p.ProcessName, StringComparer.OrdinalIgnoreCase))
-        {
-            try
-            {
-                if (excluded.Contains(process.ProcessName))
-                    continue;
+    private void RefreshSources()
+    {
+        _allSources = _audioService
+            .GetAudioSources(_excludedProcessNames)
+            .ToList();
 
-                if (!seen.Add(process.ProcessName))
-                    continue;
-
-                string title = string.IsNullOrWhiteSpace(process.MainWindowTitle)
-                    ? process.ProcessName
-                    : process.MainWindowTitle;
-
-                _allProcesses.Add(new ProcessChoice(
-                    process.Id,
-                    process.ProcessName,
-                    title));
-            }
-            catch
-            {
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
-
-        ApplyFilter("");
+        ApplyFilter(SearchBox.Text);
     }
 
     private void ApplyFilter(string query)
     {
-        IEnumerable<ProcessChoice> filtered = _allProcesses;
+        IEnumerable<AudioSourceInfo> filtered = _allSources;
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            filtered = filtered.Where(p =>
-                p.ProcessName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                p.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(source =>
+                source.ProcessName.Contains(
+                    query,
+                    StringComparison.OrdinalIgnoreCase) ||
+                source.DisplayName.Contains(
+                    query,
+                    StringComparison.OrdinalIgnoreCase));
         }
 
-        ProcessList.ItemsSource = filtered.ToList();
+        List<AudioSourceInfo> result = filtered.ToList();
+        ProcessList.ItemsSource = result;
+
+        SourceCountText.Text =
+            $"{result.Count} von {_allSources.Count} Audioquellen";
+
+        bool empty = result.Count == 0;
+
+        EmptyState.Visibility = empty
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        ProcessList.Visibility = empty
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) =>
+    private void Refresh_Click(object sender, RoutedEventArgs e) =>
+        RefreshSources();
+
+    private void SearchBox_TextChanged(
+        object sender,
+        TextChangedEventArgs e) =>
         ApplyFilter(SearchBox.Text);
 
-    private void Preset_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Tag: string key })
-            return;
+    private void Add_Click(
+        object sender,
+        RoutedEventArgs e) =>
+        ConfirmSelection();
 
-        if (!Presets.TryGetValue(key, out var preset))
-            return;
-
-        ProcessChoice? running = _allProcesses.FirstOrDefault(p =>
-            p.ProcessName.Equals(preset.ProcessName, StringComparison.OrdinalIgnoreCase));
-
-        SelectedProcess = running ?? new ProcessChoice(
-            0,
-            preset.ProcessName,
-            preset.DisplayName);
-
-        DialogResult = true;
-    }
-
-    private void Add_Click(object sender, RoutedEventArgs e) => ConfirmSelection();
-
-    private void ProcessList_MouseDoubleClick(object sender, MouseButtonEventArgs e) =>
+    private void ProcessList_MouseDoubleClick(
+        object sender,
+        MouseButtonEventArgs e) =>
         ConfirmSelection();
 
     private void ConfirmSelection()
     {
-        if (ProcessList.SelectedItem is not ProcessChoice process)
+        if (ProcessList.SelectedItem is not AudioSourceInfo source)
         {
-            MessageBox.Show(this, "Bitte zuerst ein Programm auswählen.");
+            MessageBox.Show(
+                this,
+                "Bitte zuerst eine Audioquelle auswählen.",
+                "ZLD Audio Control",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
             return;
         }
 
-        SelectedProcess = process;
+        SelectedProcess = source;
         DialogResult = true;
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e) =>
+    private void Cancel_Click(
+        object sender,
+        RoutedEventArgs e) =>
         DialogResult = false;
-}
-
-public sealed record ProcessChoice(int Id, string ProcessName, string DisplayName)
-{
-    public string Initial =>
-        string.IsNullOrWhiteSpace(DisplayName)
-            ? "?"
-            : DisplayName[..1].ToUpperInvariant();
 }

@@ -1,4 +1,4 @@
-# ZLD Audio Control 1.0.4.2
+# ZLD Audio Control 1.0.5
 
 ZLD Audio Control verwandelt einen MIDI-/DJ-Controller in eine frei
 konfigurierbare Windows-Audiosteuerung.
@@ -143,3 +143,25 @@ Die Farbwelt orientiert sich am ZLD-Logo:
 
 Der bisherige Light-Modus ist nun ein gedämpftes Soft-Lavendel-Theme und
 dadurch ebenfalls deutlich augenfreundlicher.
+
+
+## Audio Source Engine
+
+Der Hinzufügen-Dialog zeigt jetzt nicht mehr einfach alle laufenden Prozesse.
+Er liest direkt die Windows-Audiositzungen des aktuellen Ausgabegeräts aus.
+
+Dadurch erscheinen nur Quellen, die Windows tatsächlich als regelbare
+Audioquelle kennt. Angezeigt werden:
+
+- Name der Audioquelle
+- Prozessname
+- Anzahl der erkannten Audiositzungen
+- aktuelle Lautstärke
+- Mute-Status
+- aktueller Audiopegel
+
+Fehlt ein Spiel, muss es kurz Ton ausgeben. Danach im Dialog auf
+`Aktualisieren` klicken.
+
+Mehrere Audiositzungen desselben Prozesses, etwa mehrere Chrome-Prozesse,
+werden als gemeinsamer Kanal geregelt.

@@ -171,21 +171,40 @@ public partial class MainWindow : Window
 
     private void AddProgram_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new ProcessPickerWindow(Channels.Select(c => c.ProcessName)) { Owner = this };
-        if (picker.ShowDialog() != true || picker.SelectedProcess is null) return;
+        var picker = new ProcessPickerWindow(
+            _audio,
+            Channels
+                .Where(channel => channel.Kind == ChannelKind.Application)
+                .Select(channel => channel.ProcessName))
+        {
+            Owner = this
+        };
 
-        var p = picker.SelectedProcess;
+        if (picker.ShowDialog() != true ||
+            picker.SelectedProcess is null)
+        {
+            return;
+        }
+
+        AudioSourceInfo source = picker.SelectedProcess;
+
         var channel = new AppChannel
         {
             Id = Guid.NewGuid().ToString("N"),
-            ProcessName = p.ProcessName,
-            DisplayName = p.DisplayName,
-            Role = p.ProcessName.Equals("Spotify", StringComparison.OrdinalIgnoreCase)
-                ? "Spotify" : "Programm",
-            Kind = ChannelKind.Application
+            ProcessName = source.ProcessName,
+            DisplayName = source.DisplayName,
+            Role = source.ProcessName.Equals(
+                "Spotify",
+                StringComparison.OrdinalIgnoreCase)
+                    ? "Spotify"
+                    : "Audioquelle",
+            Kind = ChannelKind.Application,
+            Volume = source.Volume,
+            IsMuted = source.Muted,
+            IsAvailable = true,
+            StatusText = source.StatusText
         };
 
-        _audio.RefreshChannel(channel);
         Channels.Add(channel);
         SaveCurrentProfile();
     }
